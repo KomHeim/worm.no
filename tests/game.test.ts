@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {createGame,step,replay,interval,SIZE} from '../lib/game.ts';
+const g=createGame(42),other=createGame(42);assert.deepEqual(g,other,'seed is deterministic');assert(!g.snake.includes(g.food));
+const head=g.snake[0];step(g,3);assert.equal(g.direction,1,'180-degree turn rejected');assert.equal(g.snake[0],head+1);
+g.food=g.snake[0]+1;const len=g.snake.length;step(g);assert.equal(g.score,10);assert.equal(g.snake.length,len+1);assert(!g.snake.includes(g.food));
+while(!g.dead)step(g);assert(g.dead,'wall collision ends game');
+const body=createGame(1);body.snake=[5*SIZE+5,5*SIZE+4,6*SIZE+4,6*SIZE+5,6*SIZE+6];body.direction=1;step(body,2);assert(body.dead,'body collision ends game');
+const tail=createGame(1);tail.snake=[5*SIZE+5,5*SIZE+4,6*SIZE+4,6*SIZE+5];tail.direction=1;step(tail,2);assert(!tail.dead,'vacated tail cell is legal');
+const a=createGame(1234);const turns=[{tick:4,direction:2 as const},{tick:8,direction:3 as const}];let duration=0;for(let i=1;i<=12;i++){duration+=interval('classic',a.score);step(a,turns.find(t=>t.tick===i)?.direction);}const r=replay(1234,'classic',turns,12);assert.deepEqual(r.game,a);assert.equal(r.duration,duration);
+assert.throws(()=>replay(1,'classic',[{tick:1,direction:3}],2));assert.throws(()=>replay(1,'classic',[],50001));assert.throws(()=>replay(1,'classic',[{tick:2,direction:0},{tick:2,direction:1}],3));assert.throws(()=>replay(1,'classic',[],50));
+assert(interval('classic',500)<interval('classic',0));assert(interval('fast',0)<interval('classic',0));assert(interval('expert',0)<interval('fast',0));
+console.log('PASS: deterministic replay, food/length/score, wall/body collision, reverse prevention, tail movement, replay rejection, mode speeds.');
