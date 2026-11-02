@@ -1,9 +1,14 @@
 import {env} from 'cloudflare:workers';
-import {getChatGPTUser} from '@/app/chatgpt-auth';
-export const database=()=> {if(!env.DB)throw new Error('Database unavailable');return env.DB;};
+export const database=()=>{if(!env.DB)throw new Error('Database unavailable');return env.DB;};
 export const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
-export function checkOrigin(request:Request) {const origin=request.headers.get('Origin');if(!origin||origin!==new URL(request.url).origin)throw new Error('Origin denied');if(!request.headers.get('Content-Type')?.startsWith('application/json'))throw new Error('JSON required');}
-export async function body(request:Request) {if(Number(request.headers.get('Content-Length')||0)>1500000)throw new Error('Request too large');const raw=await request.text();if(raw.length>1500000)throw new Error('Request too large');return JSON.parse(raw);}
-export async function identity(){const user=await getChatGPTUser();return user?.userId??null;}
-export async function ensureProfile(id:string){const db=database();const suffix=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(id));const code=Array.from(new Uint8Array(suffix)).slice(0,4).map(x=>x.toString(16).padStart(2,'0')).join('');await db.prepare('INSERT OR IGNORE INTO profiles (id,username,created_at) VALUES (?,?,?)').bind(id,'Player_'+code,Date.now()).run();}
-export async function me(id:string){const db=database();const profile=await db.prepare('SELECT username,created_at FROM profiles WHERE id=?').bind(id).first();const rows=await db.prepare(`SELECT s.mode,s.best,s.games,s.total,s.record_at,s.last_played,1+(SELECT COUNT(*) FROM stats x JOIN profiles p ON p.id=x.user_id WHERE x.mode=s.mode AND (x.best>s.best OR (x.best=s.best AND (x.record_at<s.record_at OR (x.record_at=s.record_at AND x.user_id<s.user_id))))) AS rank FROM stats s WHERE s.user_id=?`).bind(id).all();return {authenticated:true,profile,stats:rows.results};}
+export function checkOrigin(request:Request){
+  const origin=request.headers.get('Origin');
+  if(!origin||origin!==new URL(request.url).origin)throw new Error('Origin denied');
+  if(!request.headers.get('Content-Type')?.startsWith('application/json'))throw new Error('JSON required');
+}
+export async function body(request:Request){
+  if(Number(request.headers.get('Content-Length')||0)>1500000)throw new Error('Request too large');
+  const raw=await request.text();
+  if(raw.length>1500000)throw new Error('Request too large');
+  return JSON.parse(raw) as Record<string,unknown>;
+}

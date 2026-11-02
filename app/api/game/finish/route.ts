@@ -1,6 +1,32 @@
-import {identity,database,body,checkOrigin,json,me} from '@/lib/server';
+import {database,body,checkOrigin,json} from '@/lib/server';
 import {replay,isMode,Turn} from '@/lib/game';
-export async function POST(request:Request){try{checkOrigin(request);const id=await identity();if(!id)return json({error:'Sign in first'},401);const data=await body(request);if(typeof data.session!=='string')return json({error:'Invalid session'},400);const db=database();const session=await db.prepare('SELECT * FROM sessions WHERE id=? AND user_id=?').bind(data.session,id).first<{id:string,user_id:string,mode:string,seed:number,started:number,consumed:number}>();if(!session||!isMode(session.mode))return json({error:'Game session not found'},404);if(session.consumed)return json({ok:true,alreadySaved:true,...await me(id)});const now=Date.now();if(now-session.started>86400000)return json({error:'Game session expired'},400);const result=replay(session.seed,session.mode,data.turns as Turn[],data.ticks);if(now-session.started+250<result.duration)return json({error:'Replay ran faster than allowed'},400);if(!result.game.dead)return json({error:'Only completed games can be ranked'},400);
-const score=result.game.score;await db.batch([
-db.prepare(`INSERT INTO stats (user_id,mode,best,games,total,record_at,last_played) SELECT user_id,mode,?,1,?,?,? FROM sessions WHERE id=? AND user_id=? AND consumed=0 ON CONFLICT(user_id,mode) DO UPDATE SET best=MAX(stats.best,excluded.best),games=stats.games+1,total=stats.total+excluded.total,record_at=CASE WHEN excluded.best>stats.best THEN excluded.record_at ELSE stats.record_at END,last_played=excluded.last_played`).bind(score,score,now,now,session.id,id),
-db.prepare('UPDATE sessions SET consumed=1 WHERE id=? AND user_id=? AND consumed=0').bind(session.id,id)]);return json({ok:true,score,...await me(id)});}catch(e){return json({error:e instanceof Error&&/replay|turn|collision/i.test(e.message)?e.message:'Could not save this game. Please retry.'},400);}}
+
+type Session={id:string;nickname:string;mode:string;seed:number;started:number;consumed:number};
+export async function POST(request:Request){
+  try{
+    checkOrigin(request);
+    const data=await body(request);
+    if(typeof data.session!=='string'||data.session.length>100)return json({error:'Invalid session'},400);
+    const db=database();
+    const session=await db.prepare('SELECT * FROM anonymous_sessions WHERE id=?').bind(data.session).first<Session>();
+    if(!session||!isMode(session.mode))return json({error:'Game session not found'},404);
+    if(session.consumed){
+      const prior=await db.prepare('SELECT id,score FROM runs WHERE id=?').bind(session.id).first<{id:string;score:number}>();
+      return prior?json({ok:true,alreadySaved:true,id:prior.id,score:prior.score}):json({error:'Game session already used'},409);
+    }
+    const now=Date.now();
+    if(now-session.started>86400000)return json({error:'Game session expired'},400);
+    const result=replay(session.seed,session.mode,data.turns as Turn[],data.ticks as number);
+    if(now-session.started+250<result.duration)return json({error:'Replay ran faster than allowed'},400);
+    if(!result.game.dead)return json({error:'Only completed games can be ranked'},400);
+    await db.batch([
+      db.prepare('INSERT INTO runs (id,nickname,mode,score,finished_at) SELECT id,nickname,mode,?,? FROM anonymous_sessions WHERE id=? AND consumed=0 ON CONFLICT(id) DO NOTHING')
+        .bind(result.game.score,now,session.id),
+      db.prepare('UPDATE anonymous_sessions SET consumed=1 WHERE id=? AND consumed=0').bind(session.id)
+    ]);
+    const saved=await db.prepare('SELECT id,score FROM runs WHERE id=?').bind(session.id).first<{id:string;score:number}>();
+    return saved?json({ok:true,id:saved.id,score:saved.score}):json({error:'Score was not saved. Please retry.'},503);
+  }catch(e){
+    return json({error:e instanceof Error&&/Invalid replay|Invalid turn|Impossible turn|collision|Origin denied|JSON required|Request too large/i.test(e.message)?e.message:'Could not save this game. Please retry.'},400);
+  }
+}

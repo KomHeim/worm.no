@@ -1,17 +1,11 @@
-# Source copy of Worm.no
+# Worm.no GitHub source copy
 
-This repository contains a copy of the Worm.no source hosted through ChatGPT Sites.
+Original website: https://worm.no
+Original Sites source commit: dcd5f6a55ccc45f9ddb64bf9f21c0eb5af08eda2
+Original source copied from Sites: 2026-10-31
 
-- Original website: https://worm.no
-- Original Sites source commit: `dcd5f6a55ccc45f9ddb64bf9f21c0eb5af08eda2`
-- Copied: 2026-10-31
+The GitHub repository is a separate copy of the Sites-hosted source. GitHub commits do not automatically deploy to worm.no.
 
-## Scope
+On 2026-11-02 the GitHub source was updated for 20 x 15 Snake, anonymous scores, per-round nicknames and unique verified game IDs. Deploy this new code through Sites separately and apply the added Cloudflare D1 migration named drizzle/0001_anonymous_scores.sql.
 
-The copy includes the Snake game, styles, original font and branding, API routes, deterministic replay validation, D1 schema and migrations, tests, lockfile, and build tooling.
-
-Production continues to run on Sites. Pushing to this repository does not deploy the website. Runtime secrets, user accounts, production scores, database contents, dependencies, generated builds, and local runtime state are not copied.
-
-The tracked `.openai/hosting.json` preserves the original Sites project identity for reference. Do not reuse that project ID for an independent deployment. Native ChatGPT sign-in and the production D1 binding depend on the Sites runtime; deploying elsewhere requires configuring equivalent authentication and storage.
-
-See README.md for runtime behavior, controls, development checks, and privacy details.
+The project ID in .openai/hosting.json remains for reference and must not be reused to deploy an unrelated project. Production credentials, scores, secrets, generated builds and database contents are not tracked here.

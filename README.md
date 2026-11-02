@@ -1,31 +1,36 @@
 # Worm.no
 
-Classic Snake hosted with ChatGPT Sites. No GitHub dependency.
+Classic Snake hosted on ChatGPT Sites and Cloudflare Workers.
 
-## Runtime
+## Gameplay and records
 
-- Vinext/React on the Sites Cloudflare Worker runtime.
-- Sites provisions the D1 binding `DB`; schema and migrations live under `db/` and `drizzle/`.
-- Native Sites ChatGPT sign-in. Stable, dispatch-injected identity owns records. Email is never persisted by the game or exposed by the leaderboard. Login/recovery are managed by ChatGPT.
-- Guests can play immediately. Their records and preferences are saved only in this browser.
-- Signed-in scores, counters, records and dates persist in D1 with no application expiry. Each difficulty has independent stats and rankings.
+- 20 columns by 15 rows, ten points per bite; keyboard (WASD/arrows), swipes and touch controls.
+- Space to pause, Escape to pause, Enter to open the nickname prompt.
+- Classic, Fast and Expert each have a separate top-100 leaderboard.
+- No login: each round asks for a nickname (2 to 20 Unicode letters/numbers, spaces, underscore or hyphen).
+- Each ranked round gets a unique cryptographically random UUID. A nickname may be reused for many distinct rounds, each shown separately.
+- Local personal bests, game counts, last nickname and preferences are saved in browser storage. Browser records do not sync between devices and disappear if site data is cleared.
+- Ranked scores and their nicknames persist globally in Cloudflare D1.
 
-## Score validation
+## Backend and installation
 
-The server creates a cryptographically random session and seed tied to the authenticated user. A finished game submits only its session ID, direction changes and tick count. The server replays the deterministic engine, validates turns, collision, bounds and minimum elapsed duration, then computes the score. Direct client score fields are ignored. Atomic D1 batches consume sessions once, increment counters and use MAX to protect personal bests. Writes require same-origin JSON, identity and ownership. Sessions expire in 24 hours; starts are limited to 120 per user per hour. Replay validation deters score modification but does not prevent automated legitimate gameplay.
+The runtime is Vinext/React on Cloudflare Workers with a D1 database binding named DB.
+Before using the new API, apply the SQL migrations in drizzle, especially 0001_anonymous_scores.sql (which adds anonymous_sessions and runs while keeping the old tables).
 
-## Development and checks
+POST /api/game/start accepts a mode and nickname and returns a session ID and random seed.
+POST /api/game/finish accepts the session ID, turns and ticks. It verifies deterministic replay, collisions and minimum elapsed time, and saves that session only once.
+GET /api/leaderboard?mode=classic returns the highest 100 individual completed runs, including their public game IDs.
 
-Use the Sites skill helpers for installation/build/publication. Local D1 is separate from production.
+Existing signed-in scores in the legacy stats table are retained but are not automatically converted into anonymous runs.
 
-- `node --experimental-strip-types tests/game.test.ts`: engine invariants and replay tests.
-- `node node_modules/typescript/bin/tsc --noEmit`: type check.
-- After a production build, `node --experimental-strip-types tests/backend.test.ts`: integration tests against the actual compiled Worker and an isolated in-memory D1 through Miniflare. Simulated identity headers are local test fixtures; hosted identity headers are owned by Sites dispatch.
+**Abuse warning:** because ranked play is anonymous, replay verification does not prevent automated gameplay or mass session creation. Configure edge rate limits and anti-abuse controls for write endpoints before high-traffic use.
 
-The backend integration tests cover anonymous rejection, CSRF, ownership, elapsed-time validation, fabricated score rejection, idempotency, counters, monotonic records, global visibility, mode isolation, email privacy and profile deletion. Never run fixture tests against a production database.
+## Deployment and tests
 
-## UX and privacy
+This GitHub repository is a Sites source copy. A GitHub push does not publish changes to worm.no. Deploy the updated source through ChatGPT Sites and migrate its D1 database separately.
 
-WASD/arrows move, Space toggles pause, Escape pauses and Enter starts/restarts. Pointer swipes and directional buttons support mobile. Changing tabs pauses automatically. Ranked games that fail to save are retained locally for retry; guest records cannot be imported into rankings. Only completed games count. Display name changes and Worm.no profile deletion are available in the player menu. Deleting the game profile does not delete the ChatGPT account.
+- Engine checks: node --experimental-strip-types tests/game.test.ts
+- TypeScript checks: node node_modules/typescript/bin/tsc --noEmit
+- Backend integration (requires a built Worker): node --experimental-strip-types tests/backend.test.ts
 
-Original local bitmap font and SVG branding; no remote fonts, advertising, third-party analytics or tracking pixels. Reduced-motion preferences are respected. Source and release history are stored through Sites.
+Do not run integration tests on the production database. The independent /artillery game is unchanged.

@@ -1,3 +1,24 @@
-import {identity,database,body,checkOrigin,json,ensureProfile} from '@/lib/server';
+import {database,body,checkOrigin,json} from '@/lib/server';
 import {isMode} from '@/lib/game';
-export async function POST(request:Request){try{checkOrigin(request);const id=await identity();if(!id)return json({error:'Sign in for ranked play'},401);const data=await body(request);if(!isMode(data.mode))return json({error:'Invalid mode'},400);const db=database(),now=Date.now();await ensureProfile(id);const count=await db.prepare('SELECT COUNT(*) AS n FROM sessions WHERE user_id=? AND started>?').bind(id,now-3600000).first<{n:number}>();if((count?.n??0)>=120)return json({error:'Ranked game limit reached. Play as a guest or try again in an hour.'},429);const seed=crypto.getRandomValues(new Uint32Array(1))[0]||1,session=crypto.randomUUID();await db.batch([db.prepare('DELETE FROM sessions WHERE id IN (SELECT id FROM sessions WHERE started<? LIMIT 100)').bind(now-86400000),db.prepare('INSERT INTO sessions (id,user_id,mode,seed,started,consumed) VALUES (?,?,?,?,?,0)').bind(session,id,data.mode,seed,now)]);return json({session,seed});}catch{return json({error:'Could not start a ranked game. Please retry or play offline.'},503);}}
+
+export async function POST(request:Request){
+  try{
+    checkOrigin(request);
+    const data=await body(request);
+    if(!isMode(data.mode))return json({error:'Invalid mode'},400);
+    if(typeof data.nickname!=='string'||!/^[-\p{L}\p{N}_ ]{2,20}$/u.test(data.nickname.trim()))
+      return json({error:'Use a nickname with 2–20 letters, numbers, spaces, underscores or hyphens.'},400);
+    const nickname=data.nickname.trim();
+    const db=database(),now=Date.now();
+    const seed=crypto.getRandomValues(new Uint32Array(1))[0]||1, session=crypto.randomUUID();
+    await db.batch([
+      db.prepare('DELETE FROM anonymous_sessions WHERE id IN (SELECT id FROM anonymous_sessions WHERE started<? LIMIT 100)').bind(now-86400000),
+      db.prepare('INSERT INTO anonymous_sessions (id,nickname,mode,seed,started,consumed) VALUES (?,?,?,?,?,0)')
+        .bind(session,nickname,data.mode,seed,now)
+    ]);
+    return json({session,seed});
+  }catch(e){
+    return json({error:e instanceof Error&&/Origin denied|JSON required|Invalid|Request too large/i.test(e.message)?e.message:'Could not start a ranked game. Try offline play.'},
+      e instanceof Error&&/Origin denied|JSON required|Invalid|Request too large/i.test(e.message)?400:503);
+  }
+}
