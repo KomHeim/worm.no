@@ -24,10 +24,17 @@ assert.ok(height(256,'u',0)>left && height(256,'u',0)<center, 'U transitions smo
 assert.ok(height(768,'u',0)>right && height(768,'u',0)<center, 'U transitions smoothly on the right');
 assert.notEqual(height(200,'hills',-100),height(200,'hills',100), 'Original map remains varied');
 
-for (let i = 0; i < 4; i++) assert.match(html, new RegExp('data-weapon="' + i + '"'), 'Weapon ' + (i+1) + ' available');
-assert.match(html, /ALL 4 UNLOCKED/);
+for (let i = 0; i < 9; i++) assert.match(html, new RegExp('data-weapon="' + i + '"'), 'Weapon ' + (i+1) + ' available');
+assert.match(html, /ALL 9 UNLOCKED/);
 assert.match(script, /phase==='menu'\|\|canControl\(\)/, 'Weapons can be selected before starting');
 assert.match(script, /teamWeapons\[team\]=weapon/, 'Each team retains its equipped weapon');
 assert.match(script, /terrainType=e\.target\.value/, 'Map picker changes terrain');
 assert.match(script, /ctx\.drawImage\(floor,0,0\)/, 'Destructible terrain still drawn');
-console.log('PASS: Artillery JS parses, three maps present, flat/U geometry, all four weapons selectable, and destructible terrain retained.');
+assert.match(script, /MACHINE GUN/, 'Machine gun implemented');
+assert.match(script, /SHOTGUN/, 'Shotgun implemented');
+assert.match(script, /CLUSTER BOMB/, 'Cluster bomb implemented');
+assert.match(script, /AIR STRIKE/, 'Air strike implemented');
+assert.match(script, /function dropCrate\(/, 'Supply drops generated');
+assert.match(script, /powerBoost\[team\]/, 'Supply boost used by firing');
+assert.match(script, /Math\.random\(\)<\.8\)dropCrate\(\)/, 'Supply drops enabled during turns');
+console.log('PASS: Artillery JS parses, three maps present, flat/U geometry, nine weapons selectable, including machine gun and supply drops, and destructible terrain retained.');
