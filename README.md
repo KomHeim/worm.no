@@ -12,6 +12,20 @@ Classic Snake hosted on ChatGPT Sites and Cloudflare Workers.
 - Local personal bests, game counts, last nickname and preferences are saved in browser storage. Browser records do not sync between devices and disappear if site data is cleared.
 - Ranked scores and their nicknames persist globally in Cloudflare D1.
 
+## Artillery Arena
+
+The separate turn-based game is available at `/artillery/`. Its four weapons (Rocket, Grenade, Mortar and Needle) are all unlocked from the first turn and can be selected in the pre-game menu or during a human turn. Each team retains its selected weapon between turns.
+
+Use the **Map** selector to choose among:
+
+- **Rolling hills** — the original randomized landscape.
+- **Flat field** — flat, level terrain.
+- **Giant U** — a broad basin with raised sides, shaped like a large U.
+
+Every map uses the original destructible terrain and collision system. Changing the map during a match starts a new match on that terrain.
+
+Tests: `node --test tests/artillery.test.mjs` (no browser needed).
+
 ## Backend and installation
 
 The runtime is Vinext/React on Cloudflare Workers with a D1 database binding named DB.
