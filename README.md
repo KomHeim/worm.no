@@ -14,7 +14,7 @@ Classic Snake hosted on ChatGPT Sites and Cloudflare Workers.
 
 ## Artillery Arena
 
-The separate turn-based game is available at `/artillery/`. Its four weapons (Rocket, Grenade, Mortar and Needle) are all unlocked from the first turn and can be selected in the pre-game menu or during a human turn. Each team retains its selected weapon between turns.
+The separate turn-based game is available at `/artillery/`. All nine weapons are unlocked from the first turn: Rocket, Grenade, Mortar, Needle, Machine Gun, Shotgun, Cluster Bomb, Heavy Bomb and Air Strike. Select one in the pre-game menu or during a human turn (keyboard keys 1–9). Each team retains its selection between turns. Machine Gun fires a timed burst, Shotgun spreads pellets, Cluster Bomb creates additional blasts and Air Strike fires five incoming shells. Every weapon is available without collecting a crate.
 
 Use the **Map** selector to choose among:
 
@@ -22,7 +22,7 @@ Use the **Map** selector to choose among:
 - **Flat field** — flat, level terrain.
 - **Giant U** — a broad basin with raised sides, shaped like a large U.
 
-Every map uses the original destructible terrain and collision system. Changing the map during a match starts a new match on that terrain.
+Every map uses the original destructible terrain and collision system. Changing the map during a match starts a new match on that terrain. Supply crates can drop between turns: green crates restore 35 HP (up to 100), while orange crates grant a 25% damage/radius boost for the collecting team's next attack. Crates are bonuses, not weapon unlocks.
 
 Tests: `node --test tests/artillery.test.mjs` (no browser needed).
 
